@@ -25,7 +25,7 @@ private:
     }
 
 public:
-    scope_table()
+    scope_table();
     scope_table(int bucket_count, int unique_id, scope_table *parent_scope);
 
     scope_table *get_parent_scope()  // It returns a pointer to the parent scope table.
