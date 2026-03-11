@@ -3,12 +3,14 @@
     2. Rules section        (between %% %%)
     3. User code section    (after second %%) */
 
-%option noyywrap Normally,  // Flex calls a function yywrap() when it reaches end of input.
-                            // By using this option, you tell Flex:
-                            // “Don’t call yywrap(), just stop lexing at EOF.”
-                            // Reason: You don’t need to define yywrap() yourself.
+%option noyywrap            
+        /* Flex calls a function yywrap() when it reaches end of input.
+        // By using this option, you tell Flex:
+        // “Don’t call yywrap(), just stop lexing at EOF.”
+        // Reason: You don’t need to define yywrap() yourself.*/
 
-%{      // Definition section starts here.
+/* Definition section starts here.*/
+%{      
 
 #include"symbol_info.h"         // Includes your symbol_info class.
                                 // This class is used to store token information (like identifier name, type, array size, etc.).
@@ -32,25 +34,38 @@ extern int lines;               // Keeps track of current line number while scan
 
 %}     // Definition section ends here.
 
-delim	 [ \t\v\r\f]                        // This defines delimiter characters.space, tab, vertical tab, carriage return, form feed.
-newline  \r?\n                              // newline, carriage return
-ws		 {delim}+                           // This means one or more whitespace characters.
-letter_	 [A-Za-z_]                          // This defines a letter or underscore, which can be the first character of an identifier.
-digit	 [0-9]                              // This defines a digit, which can be part of an identifier or a number.        
-id		 {letter_}({letter_}|{digit})*      // This defines an identifier: starts with a letter or underscore, followed by zero or more letters, digits, or underscores.
-integers {digit}+                           // Matches integer numbers.
-floats	 {digit}*(\.{digit}+)|{digit}*(\.{digit}+)?((E|e)[-]?{digit}+)  // This matches floating-point numbers.
+/* This defines delimiter characters.space, tab, vertical tab, carriage return, form feed. */
+delim	 [ \t\v\r\f]
+
+/* newline, carriage return */                     
+newline  \r?\n   
+
+ /* This means one or more whitespace characters. */ 
+ws		 {delim}+    
+
+/* This defines a letter or underscore, which can be the first character of an identifier. */ 
+letter_	 [A-Za-z_]
+
+/* This defines a digit, which can be part of an identifier or a number. */    
+digit	 [0-9]
+
+/* This defines an identifier: starts with a letter or underscore, followed by zero or more letters, digits, or underscores. */ 
+id		 {letter_}({letter_}|{digit})* 
+
+/* Matches integer numbers. */ 
+integers {digit}+
+
+/* This matches floating-point numbers. */ 
+floats	 {digit}*(\.{digit}+)|{digit}*(\.{digit}+)?((E|e)[-]?{digit}+)  
  
-
+/* This section is the Rules part of your Flex lexer. Each rule has the form:  pattern    { action } */
+/* Meaning: When the lexer finds a pattern, it executes the action. */ 
 %%
-
-// This section is the Rules part of your Flex lexer. Each rule has the form:  pattern    { action }
-// Meaning: When the lexer finds a pattern, it executes the action.
 
 {ws}		{ /* ignore whitespace */ }
 {newline}	{ lines++; }
 
-if          { return IF; }          // When the lexer reads the word if, it returns the token IF to the parser, identifying it as a keyword.
+if          { return IF; }        { /* When the lexer reads the word if, it returns the token IF to the parser, identifying it as a keyword.*/ }
 else		{ return ELSE; }
 for         { return FOR; }
 while       { return WHILE; }
@@ -69,10 +84,10 @@ default     { return DEFAULT; }
 printf      { return PRINTLN; }
 
 
-// When the lexer matches + or -, it creates a symbol_info object for the operator, stores it in yylval, and returns the token ADDOP to the parser.
+
 "+"|"-"	    {
-                symbol_info *s = new symbol_info((string)yytext,"ADDOP");
-                yylval = (YYSTYPE)s;
+                symbol_info *s = new symbol_info((string)yytext,"ADDOP"); { /* When the lexer matches + or -, it creates a symbol_info object for the operator,*/ }
+                yylval = (YYSTYPE)s;                                      { /* stores it in yylval, and returns the token ADDOP to the parser. */ }
                 return ADDOP;
 		    }
 "*"|"/"|"%"    {
@@ -120,3 +135,5 @@ printf      { return PRINTLN; }
                 yylval = (YYSTYPE)s;
                 return CONST_FLOAT;
             }
+
+%%     // Rules section ends here. User code section starts here.
