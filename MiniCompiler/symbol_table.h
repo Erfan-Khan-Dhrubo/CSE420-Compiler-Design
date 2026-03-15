@@ -1,6 +1,7 @@
 #include "scope_table.h"    // contains the hash table implementation for one scope.
 #include <fstream>          // used for file output (ofstream).
 using namespace std;        // namespace std is used to avoid writing std:: before every standard library function.
+extern ofstream outlog;
 
 class symbol_table          // This class represents the entire symbol table, containing multiple scope tables.
 {
@@ -13,7 +14,7 @@ public:
     symbol_table(int bucket_count){
         this->bucket_count = bucket_count;
         this->current_scope = NULL;
-        this->current_scope_id = 0;
+        this->current_scope_id = 1;
     }
 
     ~symbol_table(){
@@ -30,13 +31,19 @@ public:
         current_scope = temp;       // Make It the Current Scope
         current_scope_id++;         // Increment the Scope ID
         
+        if (outlog.is_open())
+            outlog << "New ScopeTable with ID " << current_scope->get_unique_id() << " created" << endl << endl;
     }
 
     void exit_scope(){
        if(current_scope != NULL){                                   // If there is a current scope, delete it.
+            int id = current_scope->get_unique_id();
             scope_table *temp = current_scope;                      // Store the current scope in a temporary variable.
             current_scope = current_scope->get_parent_scope();      // Make the parent scope the current scope.
             delete temp;                                            // Delete the temporary variable.
+
+            if (outlog.is_open())
+                outlog << "Scopetable with ID " << id << " removed" << endl << endl;
        }
        else{
            return; // If there is no current scope, do nothing.
@@ -74,8 +81,12 @@ public:
         outlog<<"------------------"<<endl<<endl;
 
         if (current_scope != NULL)
+            current_scope->print_scope_table(outlog);
+        scope_table *temp = current_scope ? current_scope->get_parent_scope() : NULL;
+        while (temp != NULL)
         {
-            current_scope->print_scope_table(outlog);   // Print the current scope.
+            temp->print_scope_table(outlog);
+            temp = temp->get_parent_scope();
         }
         outlog<<"--------------------"<<endl<<endl;
     }

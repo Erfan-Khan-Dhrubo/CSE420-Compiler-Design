@@ -17,9 +17,13 @@ private:
 
     int hash_function(string name)
     {
-        int hash = 0;
-        for (char c:name){
-            hash += c;
+        int p = 31;
+        int m = 1e9 + 9;
+        long long hash = 0, power = 1;
+
+        for (char c : name) {
+            hash = (hash + (c - 'a' + 1) * power) % m;
+            power = (power * p) % m;
         }
         return hash % bucket_count;
     }
@@ -102,7 +106,6 @@ public:
     } 
  
 
-    //more work needs to be done
     void print_scope_table(ofstream& outlog)                    // ofstream& outlog → a reference to a file output stream.
     {
         outlog << "ScopeTable # "<< unique_id << '\n';          // Print the scope ID
@@ -115,26 +118,51 @@ public:
             }
             outlog << index << "--> \n";
 
-            for(auto *symbol_info_pointer :table[index])
+            for(auto *symbol_info_pointer : table[index])
             {
-                // Print each symbol in the bucket.
-                outlog << "<" <<symbol_info_pointer->get_name() << ":" << symbol_info_pointer->get_type() << ">\n";
-
+                if (symbol_info_pointer == NULL) continue;
+                outlog << "< " << symbol_info_pointer->get_name() << " : ID >\n";
+                string id_name = symbol_info_pointer->get_identifier_name();
+                if (id_name == "Function Definition")
+                {
+                    outlog << "Function Definition\n";
+                    outlog << "Return Type: " << symbol_info_pointer->get_identifier_type() << "\n";
+                    vector<string> params = symbol_info_pointer->get_parameters();
+                    outlog << "Number of Parameters: " << params.size() << "\n";
+                    string details;
+                    for (int i = 0; i < (int)params.size(); i++)
+                    {
+                        if (i > 0) details += ", ";
+                        details += params[i];
+                    }
+                    outlog << "Parameter Details: " << details << "\n";
+                }
+                else if (id_name == "Array")
+                {
+                    outlog << "Array\n";
+                    outlog << "Type: " << symbol_info_pointer->get_identifier_type() << "\n";
+                    outlog << "Size: " << symbol_info_pointer->get_array_size() << "\n";
+                }
+                else
+                {
+                    outlog << "Variable\n";
+                    outlog << "Type: " << symbol_info_pointer->get_identifier_type() << "\n";
+                }
+                outlog << "\n";
             }
-            outlog << "\n";
-        } 
-
+        }
+        outlog << "\n";
     }
 
     // ~scope_table() is the destructor of the class scope_table.
     // A destructor is automatically called when an object is deleted or goes out of scope.
     ~scope_table()
     {
-        for(int index = 0; index<bucket_count; index++)
+        for(int index = 0; index < bucket_count && index < (int)table.size(); index++)
         {
             for(symbol_info *sym : table[index]) // sym is a pointer to a symbol_info object.
             {
-                delete sym;                     // This frees the memory of the symbol_info object.
+                if (sym != NULL) delete sym;
             }
         }
     }

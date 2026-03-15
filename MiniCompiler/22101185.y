@@ -100,39 +100,44 @@ unit : var_declaration
 //      $4	parameter_list → int a, float b
 //      $5	)
 //      $6	compound_statement → function body
-func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement
+func_definition : type_specifier ID LPAREN parameter_list RPAREN
+        {
+            func_name = $2->get_name();
+            symbol_info *func = new symbol_info(func_name, "ID");
+            func->set_identifier_name("Function Definition");
+            func->set_identifier_type($1->get_name());
+            vector<string> param_details;
+            for (int i = 0; i < (int)param_types.size(); i++) {
+                if (i < (int)param_names.size() && param_names[i] != "") param_details.push_back(param_types[i] + " " + param_names[i]);
+                else param_details.push_back(param_types[i]);
+            }
+            func->set_parameters(param_details);
+            symtab->insert(func);
+        }
+        compound_statement
     {
         outlog<<"At line no: "<<lines<<" func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement "<<endl<<endl;
         outlog<<$1->get_name()<<" "<<$2->get_name()<<"("<<$4->get_name()<<")\n"<<$6->get_name()<<endl<<endl;
-
-        // func_name = "func" (example)
-        func_name = $2->get_name();
-
-        // Create a symbol_info object for the function and insert it into the symbol table.
-        symbol_info *func = new symbol_info(func_name, $1->get_name());
-        // func is a pointer to a symbol_info object
-        func->set_parameters(param_types); 
-    
-        // Insert the function symbol into the symbol table.
-        symtab->insert(func);
-        // If you don't clear it, the next function will reuse old parameters.
         param_names.clear();
+        param_types.clear();
         $$ = new symbol_info($1->get_name()+" "+$2->get_name()+"("+$4->get_name()+")\n"+$6->get_name(),"func_def");
-
-        
     }
-    | type_specifier ID LPAREN RPAREN compound_statement
+    | type_specifier ID LPAREN RPAREN
+        {
+            func_name = $2->get_name();
+            symbol_info *func = new symbol_info(func_name, "ID");
+            func->set_identifier_name("Function Definition");
+            func->set_identifier_type($1->get_name());
+            func->set_parameters(vector<string>());
+            symtab->insert(func);
+        }
+        compound_statement
     {
         outlog<<"At line no: "<<lines<<" func_definition : type_specifier ID LPAREN RPAREN compound_statement "<<endl<<endl;
         outlog<<$1->get_name()<<" "<<$2->get_name()<<"()\n"<<$5->get_name()<<endl<<endl;
-
-        func_name = $2->get_name();
-
-        symbol_info *func = new symbol_info(func_name, $1->get_name());
-        symtab->insert(func);
-
-        $$ = new symbol_info($1->get_name()+" "+$2->get_name()+"()\n"+$5->get_name(),"func_def");  
-
+        param_names.clear();
+        param_types.clear();
+        $$ = new symbol_info($1->get_name()+" "+$2->get_name()+"()\n"+$5->get_name(),"func_def");
     }
     ;
 
@@ -186,24 +191,37 @@ parameter_list : parameter_list COMMA type_specifier ID
 //      LCURL	{
 //      statements	code inside the block
 //      RCURL	}
-compound_statement : LCURL statements RCURL
+compound_statement : LCURL
+        {
+            symtab->enter_scope();
+            for (int i = 0; i < (int)param_names.size() && i < (int)param_types.size(); i++) {
+                if (param_names[i] != "") {
+                    symbol_info *p = new symbol_info(param_names[i], "ID");
+                    p->set_identifier_name("Variable");
+                    p->set_identifier_type(param_types[i]);
+                    symtab->insert(p);
+                }
+            }
+        }
+        statements RCURL
     {
         outlog<<"At line no: "<<lines<<" compound_statement : LCURL statements RCURL "<<endl<<endl;
-        outlog<<"{\n"+$2->get_name()+"\n}"<<endl<<endl;
-        symtab->enter_scope();      // This creates a new scope table.
-        $$ = new symbol_info("{\n"+$2->get_name()+"\n}","comp_stmnt");
+        outlog<<"{\n"+$3->get_name()+"\n}"<<endl<<endl;
+        $$ = new symbol_info("{\n"+$3->get_name()+"\n}","comp_stmnt");
         symtab->print_current_scope(outlog);
-        symtab->exit_scope();       // exit local scope
+        symtab->exit_scope();
     }
-    | LCURL RCURL
+    | LCURL
+        {
+            symtab->enter_scope();
+        }
+        RCURL
     {
         outlog<<"At line no: "<<lines<<" compound_statement : LCURL RCURL "<<endl<<endl;
         outlog<<"{\n}"<<endl<<endl;
-        symtab->enter_scope();
         $$ = new symbol_info("{\n}","comp_stmnt");
         symtab->print_current_scope(outlog);
         symtab->exit_scope();
-       
     }
     ;
 
@@ -211,10 +229,7 @@ var_declaration : type_specifier declaration_list SEMICOLON
     {
         outlog<<"At line no: "<<lines<<" var_declaration : type_specifier declaration_list SEMICOLON "<<endl<<endl;
         outlog<< $1->get_name() <<" "<< $2->get_name() <<";"<<endl<<endl;
-
-        current_type = $1->get_name();
         $$ = new symbol_info($1->get_name()+" "+$2->get_name()+";","var_dec");
-
     }
     ;
 
@@ -222,18 +237,21 @@ type_specifier : INT
     {
         outlog<<"At line no: "<<lines<<" type_specifier : INT "<<endl<<endl;
         outlog<<"int"<<endl<<endl;
+        current_type = "int";
         $$ = new symbol_info("int","type");
     }
     | FLOAT
     {
         outlog<<"At line no: "<<lines<<" type_specifier : FLOAT "<<endl<<endl;
         outlog<<"float"<<endl<<endl;
+        current_type = "float";
         $$ = new symbol_info("float","type");
     }
     | VOID
     {
         outlog<<"At line no: "<<lines<<" type_specifier : VOID "<<endl<<endl;
         outlog<<"void"<<endl<<endl;
+        current_type = "void";
         $$ = new symbol_info("void","type");
     }
     ;
@@ -245,7 +263,10 @@ declaration_list : declaration_list COMMA ID
         outlog<< $1->get_name() <<","<< $3->get_name() <<endl<<endl;
 
         symbol_info *sym = new symbol_info($3->get_name(), current_type);
+        sym->set_identifier_name("Variable");
+        sym->set_identifier_type(current_type);
         symtab->insert(sym);
+        $$ = new symbol_info($1->get_name()+","+$3->get_name(),"decl_list");
 
     }
     // Example input: int a, float b[10]
@@ -255,8 +276,11 @@ declaration_list : declaration_list COMMA ID
         outlog<< $1->get_name() <<","<< $3->get_name() <<"["<<$5->get_name()<<"]"<<endl<<endl;
 
         symbol_info *sym = new symbol_info($3->get_name(), current_type);
+        sym->set_identifier_name("Array");
+        sym->set_identifier_type(current_type);
         sym->set_array_size(stoi($5->get_name()));
         symtab->insert(sym);
+        $$ = new symbol_info($1->get_name()+","+$3->get_name()+"["+$5->get_name()+"]","decl_list");
 
     }
     // Example input: int a
@@ -266,7 +290,10 @@ declaration_list : declaration_list COMMA ID
         outlog<< $1->get_name() <<endl<<endl;
 
         symbol_info *sym = new symbol_info($1->get_name(), current_type);
+        sym->set_identifier_name("Variable");
+        sym->set_identifier_type(current_type);
         symtab->insert(sym);
+        $$ = new symbol_info($1->get_name(),"decl_list");
     }
     // Example input: float b[10]
     | ID LTHIRD CONST_INT RTHIRD
@@ -275,9 +302,12 @@ declaration_list : declaration_list COMMA ID
         outlog<< $1->get_name() <<"["<<$3->get_name()<<"]"<<endl<<endl;
 
         symbol_info *sym = new symbol_info($1->get_name(), current_type);
+        sym->set_identifier_name("Array");
+        sym->set_identifier_type(current_type);
         // stoi() is a function that converts a string to an integer:
         sym->set_array_size(stoi($3->get_name()));
         symtab->insert(sym);
+        $$ = new symbol_info($1->get_name()+"["+$3->get_name()+"]","decl_list");
 
     }
     ;
