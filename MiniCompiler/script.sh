@@ -13,4 +13,3 @@ g++ y.o l.o
 echo 'All ready, running'
 ./a.exe input1.c
 echo 'logfile'
-cat log.txt
