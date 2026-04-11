@@ -19,6 +19,11 @@ symbol_table *symtab = new symbol_table(10);
 int lines = 1;
 
 ofstream outlog;
+ofstream errlog;
+
+int error_count = 0;
+int warning_count = 0;
+const string student_id = "YOUR_ID"; // Replace YOUR_ID with your actual student ID
 
 string current_type;            // Stores the current variable type being declared.(eg int, float, void)
 vector<string> param_types;     // Stores the types of the parameters of the current function being parsed. (eg int, float, void) 
@@ -41,12 +46,24 @@ bool is_zero_constant(const string &value) {
     return value == "0" || value == "0.0" || value == "0.00" || value == "0.000";
 }
 
+string strip_decl_type(const string &param) {
+    size_t pos = param.find(' ');
+    if (pos == string::npos) return param;
+    return param.substr(0, pos);
+}
+
 void semantic_error(const string &msg) {
-    outlog << "Error at line " << lines << ": " << msg << endl << endl;
+    error_count++;
+    if (errlog.is_open()) {
+        errlog << "Error at line " << lines << ": " << msg << endl;
+    }
 }
 
 void semantic_warning(const string &msg) {
-    outlog << "Warning at line " << lines << ": " << msg << endl << endl;
+    warning_count++;
+    if (errlog.is_open()) {
+        errlog << "Warning at line " << lines << ": " << msg << endl;
+    }
 }
 
 symbol_info *lookup_symbol(symbol_info *id) {
@@ -61,15 +78,17 @@ symbol_info *lookup_symbol(symbol_info *id) {
 symbol_info *make_expr(const string &name, const string &type, const string &node_type = "expr") {
     symbol_info *s = new symbol_info(name, node_type);
     s->set_identifier_type(type);
+    s->set_identifier_name("Expression");
     return s;
 }
 
 void yyerror(char *s)
 {
-    outlog<<"At line "<<lines<<" "<<s<<endl<<endl;
-    
+    error_count++;
+    if (errlog.is_open()) {
+        errlog<<"Error at line "<<lines<<": "<<s<<endl;
+    }
     // you may need to reinitialize variables if you find an error
-
 }
 %}
 
@@ -238,7 +257,9 @@ compound_statement : LCURL
                     symbol_info *p = new symbol_info(param_names[i], "ID");
                     p->set_identifier_name("Variable");
                     p->set_identifier_type(param_types[i]);
-                    symtab->insert(p);
+                    if (!symtab->insert(p)) {
+                        semantic_error("Redeclaration of parameter '" + param_names[i] + "' in the same scope");
+                    }
                 }
             }
         }
@@ -464,13 +485,13 @@ variable : ID
                 semantic_error("Function '" + $1->get_name() + "' cannot be used as a variable");
             }
             if (sym->get_identifier_name() == "Array") {
-                semantic_warning("Array '" + $1->get_name() + "' used without index");
+                semantic_error("Array '" + $1->get_name() + "' used without index");
             }
             var_type = sym->get_identifier_type();
         }
         $$ = new symbol_info($1->get_name(),"varbl");
-        $$.set_identifier_type(var_type);
-        $$.set_identifier_name("Variable");
+        $$->set_identifier_type(var_type);
+        $$->set_identifier_name("Variable");
     }    
     | ID LTHIRD expression RTHIRD 
     {
@@ -488,8 +509,8 @@ variable : ID
             semantic_error("Array index must be an integer, found '" + $3->get_identifier_type() + "'");
         }
         $$ = new symbol_info($1->get_name()+"["+$3->get_name()+"]","varbl");
-        $$.set_identifier_type(element_type);
-        $$.set_identifier_name("ArrayElement");
+        $$->set_identifier_type(element_type);
+        $$->set_identifier_name("ArrayElement");
     }
     ;
 
@@ -508,8 +529,7 @@ expression : logic_expression
         if (left_type == "" || right_type == "") {
             // if we don't know the type due to earlier errors, skip comparison
         } else if (left_type == "int" && right_type == "float") {
-            semantic_warning("Possible loss of precision: assigning float expression to int variable '") ;
-            semantic_warning("'" + $1->get_name() + "'");
+            semantic_warning("Possible loss of precision: assigning float expression to int variable '" + $1->get_name() + "'");
         } else if (!((left_type == "float" && is_numeric_type(right_type)) ||
                      (left_type == "int" && is_numeric_type(right_type)) ||
                      (left_type == right_type))) {
@@ -642,84 +662,120 @@ factor : variable
     {
         outlog<<"At line no: "<<lines<<" factor : variable "<<endl<<endl;
         outlog<< $1->get_name() <<endl<<endl;
-        $$ = new symbol_info($1->get_name(),"fctr");
+        $$ = make_expr($1->get_name(), $1->get_identifier_type(), "fctr");
     }
     | ID LPAREN argument_list RPAREN
     {
         outlog<<"At line no: "<<lines<<" factor : ID LPAREN argument_list RPAREN "<<endl<<endl;
         outlog<<$1->get_name()<<"("<<$3->get_name()<<")"<<endl<<endl;
-	
-		$$ = new symbol_info($1->get_name()+"("+$3->get_name()+")","fctr");
-	}
-	| LPAREN expression RPAREN
-	{
-	   	outlog<<"At line no: "<<lines<<" factor : LPAREN expression RPAREN "<<endl<<endl;
-		outlog<<"("<<$2->get_name()<<")"<<endl<<endl;
-		
-		$$ = new symbol_info("("+$2->get_name()+")","fctr");
-	}
-	| CONST_INT 
-	{
-	    outlog<<"At line no: "<<lines<<" factor : CONST_INT "<<endl<<endl;
-		outlog<<$1->get_name()<<endl<<endl;
-			
-		$$ = new symbol_info($1->get_name(),"fctr");
-	}
-	| CONST_FLOAT
-	{
-	    outlog<<"At line no: "<<lines<<" factor : CONST_FLOAT "<<endl<<endl;
-		outlog<<$1->get_name()<<endl<<endl;
-			
-		$$ = new symbol_info($1->get_name(),"fctr");
-	}
-	| variable INCOP 
-	{
-	    outlog<<"At line no: "<<lines<<" factor : variable INCOP "<<endl<<endl;
-		outlog<<$1->get_name()<<"++"<<endl<<endl;
-			
-		$$ = new symbol_info($1->get_name()+"++","fctr");
-	}
-	| variable DECOP
-	{
-	    outlog<<"At line no: "<<lines<<" factor : variable DECOP "<<endl<<endl;
-		outlog<<$1->get_name()<<"--"<<endl<<endl;
-			
-		$$ = new symbol_info($1->get_name()+"--","fctr");
-	}
-	;
-	
+        symbol_info *sym = lookup_symbol($1);
+        string return_type = "";
+        vector<string> arg_types = $3->get_parameters();
+        if (sym != NULL) {
+            if (sym->get_identifier_name() != "Function Definition") {
+                semantic_error("'" + $1->get_name() + "' is not a function");
+            } else {
+                return_type = sym->get_identifier_type();
+                vector<string> params = sym->get_parameters();
+                if (params.size() != arg_types.size()) {
+                    semantic_error("Function '" + $1->get_name() + "' called with wrong number of arguments");
+                }
+                int min_args = min((int)params.size(), (int)arg_types.size());
+                for (int i = 0; i < min_args; i++) {
+                    string param_type = strip_decl_type(params[i]);
+                    if (arg_types[i] == "") continue;
+                    if (param_type != arg_types[i]) {
+                        if (param_type == "int" && arg_types[i] == "float") {
+                            semantic_warning("Possible loss of precision in argument " + to_string(i+1) + " of function '" + $1->get_name() + "'");
+                        } else {
+                            semantic_error("Argument type mismatch in call to '" + $1->get_name() + "'");
+                        }
+                    }
+                }
+                if (return_type == "void") {
+                    semantic_error("Void function '" + $1->get_name() + "' cannot be used in an expression");
+                }
+            }
+        }
+        $$ = make_expr($1->get_name()+"("+$3->get_name()+")", return_type, "fctr");
+    }
+    | LPAREN expression RPAREN
+    {
+        outlog<<"At line no: "<<lines<<" factor : LPAREN expression RPAREN "<<endl<<endl;
+        outlog<<"("<<$2->get_name()<<")"<<endl<<endl;
+        
+        $$ = make_expr("("+$2->get_name()+")", $2->get_identifier_type(), "fctr");
+    }
+    | CONST_INT 
+    {
+        outlog<<"At line no: "<<lines<<" factor : CONST_INT "<<endl<<endl;
+        outlog<<$1->get_name()<<endl<<endl;
+            
+        $$ = make_expr($1->get_name(), "int", "fctr");
+    }
+    | CONST_FLOAT
+    {
+        outlog<<"At line no: "<<lines<<" factor : CONST_FLOAT "<<endl<<endl;
+        outlog<<$1->get_name()<<endl<<endl;
+            
+        $$ = make_expr($1->get_name(), "float", "fctr");
+    }
+    | variable INCOP 
+    {
+        outlog<<"At line no: "<<lines<<" factor : variable INCOP "<<endl<<endl;
+        outlog<<$1->get_name()<<"++"<<endl<<endl;
+            
+        if (!is_numeric_type($1->get_identifier_type()) && $1->get_identifier_type() != "") {
+            semantic_error("Increment operator requires numeric operand");
+        }
+        $$ = make_expr($1->get_name()+"++", $1->get_identifier_type(), "fctr");
+    }
+    | variable DECOP
+    {
+        outlog<<"At line no: "<<lines<<" factor : variable DECOP "<<endl<<endl;
+        outlog<<$1->get_name()<<"--"<<endl<<endl;
+            
+        if (!is_numeric_type($1->get_identifier_type()) && $1->get_identifier_type() != "") {
+            semantic_error("Decrement operator requires numeric operand");
+        }
+        $$ = make_expr($1->get_name()+"--", $1->get_identifier_type(), "fctr");
+    }
+    ;
+
 argument_list : arguments
-			  {
-					outlog<<"At line no: "<<lines<<" argument_list : arguments "<<endl<<endl;
-					outlog<<$1->get_name()<<endl<<endl;
-						
-					$$ = new symbol_info($1->get_name(),"arg_list");
-			  }
-			  | 
-			  {
-					outlog<<"At line no: "<<lines<<" argument_list :  "<<endl<<endl;
-					outlog<<""<<endl<<endl;
-						
-					$$ = new symbol_info("","arg_list");
-			  }
-			  ;
-	
+    {
+        outlog<<"At line no: "<<lines<<" argument_list : arguments "<<endl<<endl;
+        outlog<<$1->get_name()<<endl<<endl;
+        $$ = new symbol_info($1->get_name(),"arg_list");
+        $$->set_parameters($1->get_parameters());
+    }
+    | 
+    {
+        outlog<<"At line no: "<<lines<<" argument_list :  "<<endl<<endl;
+        outlog<<""<<endl<<endl;
+        $$ = new symbol_info("","arg_list");
+        $$->set_parameters(vector<string>());
+    }
+    ;
+
 arguments : arguments COMMA logic_expression
-		  {
-				outlog<<"At line no: "<<lines<<" arguments : arguments COMMA logic_expression "<<endl<<endl;
-				outlog<<$1->get_name()<<","<<$3->get_name()<<endl<<endl;
-						
-				$$ = new symbol_info($1->get_name()+","+$3->get_name(),"arg");
-		  }
-	      | logic_expression
-	      {
-				outlog<<"At line no: "<<lines<<" arguments : logic_expression "<<endl<<endl;
-				outlog<<$1->get_name()<<endl<<endl;
-						
-				$$ = new symbol_info($1->get_name(),"arg");
-		  }
-	      ;
- 
+    {
+        outlog<<"At line no: "<<lines<<" arguments : arguments COMMA logic_expression "<<endl<<endl;
+        outlog<<$1->get_name()<<","<<$3->get_name()<<endl<<endl;
+        $$ = new symbol_info($1->get_name()+","+$3->get_name(),"arg");
+        vector<string> params = $1->get_parameters();
+        params.push_back($3->get_identifier_type());
+        $$->set_parameters(params);
+    }
+    | logic_expression
+    {
+        outlog<<"At line no: "<<lines<<" arguments : logic_expression "<<endl<<endl;
+        outlog<<$1->get_name()<<endl<<endl;
+        $$ = new symbol_info($1->get_name(),"arg");
+        $$->set_parameters(vector<string>{$1->get_identifier_type()});
+    }
+    ;
+
 %%
 
 int main(int argc, char *argv[])
@@ -730,7 +786,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	yyin = fopen(argv[1], "r");
-	outlog.open("my_log.txt", ios::trunc);
+	outlog.open(student_id + "_log.txt", ios::trunc);
+	errlog.open(student_id + "_error.txt", ios::trunc);
 	
 	if(yyin == NULL)
 	{
@@ -743,8 +800,14 @@ int main(int argc, char *argv[])
 	yyparse();
 	
 	outlog<<endl<<"Total lines: "<<lines<<endl;
+	if (errlog.is_open()) {
+		errlog<<endl<<"Total lines: "<<lines<<endl;
+		errlog<<"Error count: "<<error_count<<endl;
+		errlog<<"Warning count: "<<warning_count<<endl;
+	}
 	
 	outlog.close();
+	if (errlog.is_open()) errlog.close();
 	
 	fclose(yyin);
 	
