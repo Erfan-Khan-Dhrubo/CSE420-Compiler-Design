@@ -87,11 +87,13 @@ printf      { return PRINTLN; }
 
 "+"|"-"	    {
                 symbol_info *s = new symbol_info((string)yytext,"ADDOP"); { /* When the lexer matches + or -, it creates a symbol_info object for the operator,*/ }
+                s->set_line_no(lines);
                 yylval = (YYSTYPE)s;                                      { /* stores it in yylval, and returns the token ADDOP to the parser. */ }
                 return ADDOP;
 		    }
 "*"|"/"|"%"    {
                 symbol_info *s = new symbol_info((string)yytext,"MULOP");
+                s->set_line_no(lines);
                 yylval = (YYSTYPE)s;
                 return MULOP;
             }
@@ -99,13 +101,20 @@ printf      { return PRINTLN; }
 "--"        { return DECOP; }
 "<"|">"|"<="|">="|"=="|"!=" {
                 symbol_info *s = new symbol_info((string)yytext,"RELOP");
+                s->set_line_no(lines);
                 yylval = (YYSTYPE)s;
                 return RELOP;
             }
 
-"="         { return ASSIGNOP; }
+"="         {
+                symbol_info *s = new symbol_info((string)yytext,"ASSIGNOP");
+                s->set_line_no(lines);
+                yylval = (YYSTYPE)s;
+                return ASSIGNOP;
+            }
 "&&"|"||"   {
 		   	symbol_info *s = new symbol_info((string)yytext,"LOGICOP");
+			s->set_line_no(lines);
 			yylval = (YYSTYPE)s;
 			return LOGICOP;
 		    }
@@ -122,16 +131,19 @@ printf      { return PRINTLN; }
 
 {id}       {
                 symbol_info *s = new symbol_info((string)yytext,"ID");
+                s->set_line_no(lines);
                 yylval = (YYSTYPE)s;
                 return ID;
             }
 {integers} {
                 symbol_info *s = new symbol_info((string)yytext,"INT");
+                s->set_line_no(lines);
                 yylval = (YYSTYPE)s;
                 return CONST_INT;
             }
 {floats}   {
                 symbol_info *s = new symbol_info((string)yytext,"FLOAT");
+                s->set_line_no(lines);
                 yylval = (YYSTYPE)s;
                 return CONST_FLOAT;
             }

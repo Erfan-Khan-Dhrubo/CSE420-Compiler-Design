@@ -17,15 +17,11 @@ private:
 
     int hash_function(string name)
     {
-        int p = 31;
-        int m = 1e9 + 9;
-        long long hash = 0, power = 1;
-
-        for (char c : name) {
-            hash = (hash + (c - 'a' + 1) * power) % m;
-            power = (power * p) % m;
+        unsigned long long hash = 5381;
+        for (unsigned char c : name) {
+            hash = ((hash << 5) + hash) + c;
         }
-        return hash % bucket_count;
+        return (int)(hash % (unsigned long long)bucket_count);
     }
 
 public:

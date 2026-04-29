@@ -1,0 +1,164 @@
+New ScopeTable with ID 1 created
+
+At line no: 1 type_specifier : INT 
+
+int
+
+At line no: 1 declaration_list : ID 
+
+x
+
+At line no: 1 declaration_list : declaration_list COMMA ID 
+
+x,y
+
+At line no: 1 declaration_list : declaration_list COMMA ID 
+
+x,y,z
+
+At line no: 1 var_declaration : type_specifier declaration_list SEMICOLON 
+
+int x,y,z;
+
+At line no: 1 unit : var_declaration 
+
+int x,y,z;
+
+At line no: 1 program : unit 
+
+int x,y,z;
+
+At line no: 1 type_specifier : FLOAT 
+
+float
+
+At line no: 1 declaration_list : ID 
+
+a
+
+At line no: 1 var_declaration : type_specifier declaration_list SEMICOLON 
+
+float a;
+
+At line no: 1 unit : var_declaration 
+
+float a;
+
+At line no: 1 program : program unit 
+
+int x,y,z;
+float a;
+
+At line no: 3 type_specifier : INT 
+
+int
+
+At line no: 3 type_specifier : INT 
+
+int
+
+At line no: 3 parameter_list : type_specifier ID 
+
+int c
+
+At line no: 3 type_specifier : INT 
+
+int
+
+At line no: 3 parameter_list : parameter_list COMMA type_specifier ID 
+
+int c,int d
+
+New ScopeTable with ID 2 created
+
+At line no: 4 factor : CONST_INT 
+
+7
+
+At line no: 4 unary_expression : factor 
+
+7
+
+At line no: 4 term : unary_expression 
+
+7
+
+At line no: 4 simple_expression : term 
+
+7
+
+At line no: 4 rel_expression : simple_expression 
+
+7
+
+At line no: 4 logic_expression : rel_expression 
+
+7
+
+At line no: 4 expression : logic_expression 
+
+7
+
+At line no: 4 statement : RETURN expression SEMICOLON 
+
+return 7;
+
+At line no: 4 statements : statement 
+
+return 7;
+
+At line no: 5 compound_statement : LCURL statements RCURL 
+
+{
+return 7;
+}
+
+------------------
+
+ScopeTable # 2
+2--> 
+< c : ID >
+Variable
+Type: int
+
+3--> 
+< d : ID >
+Variable
+Type: int
+
+
+ScopeTable # 1
+0--> 
+< a : ID >
+Variable
+Type: float
+
+3--> 
+< x : ID >
+Variable
+Type: int
+
+4--> 
+< y : ID >
+Variable
+Type: int
+
+5--> 
+< z : ID >
+Variable
+Type: int
+
+7--> 
+< func : ID >
+Function Definition
+Return Type: int
+Number of Parameters: 2
+Parameter Details: int c, int d
+
+
+--------------------
+
+Scopetable with ID 2 removed
+
+At line no: 5 func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement 
+

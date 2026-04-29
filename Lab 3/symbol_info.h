@@ -19,7 +19,9 @@ private:
     int array_size;             // This variable stores the size of the array if the symbol is an array
     vector<string> parameters;  // Used only when the symbol is a function.
                                 // Example: int sum(int a, float b) Parameters stored: ["int","float"]
-
+    int line_no;                // Source line where this token / subtree starts
+    string expr_data_type;      // Semantic type for expressions: int, float, void, error, or ""
+    vector<string> arg_types;   // Types of arguments for synthesized argument_list nodes
 
 public:
     symbol_info(string name, string type)
@@ -30,6 +32,8 @@ public:
         this->identifier_type = "";
         // this->parameters = parameters;
         this->array_size = 0;
+        this->line_no = 0;
+        this->expr_data_type = "";
     }
 
     // Getter Functions
@@ -63,6 +67,21 @@ public:
         return array_size;
     }
 
+    int get_line_no()
+    {
+        return line_no;
+    }
+
+    string get_expr_data_type()
+    {
+        return expr_data_type;
+    }
+
+    vector<string> get_arg_types()
+    {
+        return arg_types;
+    }
+
     // Setter Functions
     void set_name(string name)
     {
@@ -92,6 +111,31 @@ public:
     void set_array_size(int array_size)
     {
         this->array_size = array_size;
+    }
+
+    void set_line_no(int line_no)
+    {
+        this->line_no = line_no;
+    }
+
+    void set_expr_data_type(string expr_data_type)
+    {
+        this->expr_data_type = expr_data_type;
+    }
+
+    void clear_arg_types()
+    {
+        this->arg_types.clear();
+    }
+
+    void add_arg_type(string t)
+    {
+        this->arg_types.push_back(t);
+    }
+
+    void append_arg_types(const vector<string> &ts)
+    {
+        for (const string &t : ts) this->arg_types.push_back(t);
     }
 
     ~symbol_info() // Destructor runs when an object is destroyed.
